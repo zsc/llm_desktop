@@ -1,0 +1,119 @@
+# local-semantic-indexer 配置文件示例
+# 默认位置: ~/Library/Application Support/local-semantic-indexer/config.yaml
+
+# ========== 索引根目录 ==========
+# 默认扫描的目录（按顺序）
+roots:
+  - "/Users/<username>/Desktop"
+  - "/Users/<username>/Downloads"
+
+# 安全护栏：只允许在这些根目录内工作
+# 如果命令行传入 --roots，但路径不在 allow_roots 下，会被跳过并提示
+allow_roots:
+  - "/Users/<username>/Desktop"
+  - "/Users/<username>/Downloads"
+
+# ========== 忽略规则 ==========
+# 默认跳过的敏感路径和文件
+ignore_patterns:
+  # 敏感目录
+  - "**/.ssh/**"
+  - "**/.gnupg/**"
+  - "**/Library/Keychains/**"
+  # 敏感文件
+  - "**/.env"
+  - "**/*.pem"
+  - "**/*.key"
+  - "**/*id_rsa*"
+  - "**/*id_dsa*"
+  - "**/*id_ecdsa*"
+  - "**/*id_ed25519*"
+  # 系统目录
+  - "/System/**"
+  - "/Library/**"
+  - "/usr/**"
+  - "/bin/**"
+  - "/sbin/**"
+  # 常见缓存/依赖目录
+  - "**/node_modules/**"
+  - "**/.git/**"
+  - "**/__pycache__/**"
+  - "**/.venv/**"
+  - "**/venv/**"
+  - "**/.tox/**"
+
+# ========== 压缩包处理 ==========
+archive:
+  # 大文件阈值：> 1GB 的压缩包只 peek 文件名，不解压
+  large_threshold_bytes: 1073741824
+  # 是否允许解压小包（≤ 1GB）
+  enable_extract_small: true
+  # 解压缓存最大占用空间（GB）
+  extract_cache_max_gb: 10
+
+# ========== 模型配置 ==========
+models:
+  # CLIP 多模态嵌入模型
+  clip:
+    name: "ViT-B-32"              # open_clip 支持的模型名称
+    pretrained: "openai"          # 预训练权重
+    backend: "auto"               # auto | open_clip | hash (无 CLIP 时兜底)
+    checkpoint_path: ""           # 本地权重路径（如不使用默认缓存）
+    device_prefer: "mps"          # mps | cpu
+    batch_size: 32
+  
+  # Whisper 语音转写（音频/视频）
+  whisper:
+    model_size: "tiny"            # tiny | base | small | medium | large
+    device_prefer: "mps"          # mps | cpu (mps 不稳定时自动回退)
+    download_root: "~/.cache/whisper/"
+  
+  # Ollama 本地 LLM（可选）
+  ollama:
+    enabled: true
+    base_url: "http://127.0.0.1:11434"
+    model: "gemma3:1b"
+    timeout: 30                   # 请求超时（秒）
+    # 功能开关
+    features:
+      query_parse: true           # 查询理解/扩展
+      rerank: true                # 结果重排序
+      explain: true               # 生成命中解释
+
+# ========== 索引参数 ==========
+indexing:
+  # 并发设置
+  max_workers_io: 4               # I/O 密集型任务（扫描/读取）
+  max_workers_model: 1            # 模型推理任务（CLIP/Whisper）
+  
+  # 文本分块参数
+  chunk_chars: 2000               # 每块目标字符数
+  chunk_overlap_chars: 200        # 块间重叠字符数（保持语义连贯）
+  
+  # 视频帧提取
+  video:
+    frame_every_seconds: 2.0      # 每 N 秒提取一帧
+    max_frames_per_video: 2000    # 单视频最大帧数限制
+
+# ========== 负荷自适应（自动暂停/恢复）==========
+load_shedding:
+  cpu_pause_percent: 70           # CPU 使用率超过此值视为高负荷
+  mem_available_min_gb: 2         # 可用内存低于此值视为高负荷
+  loadavg_factor: 0.8             # 1min loadavg > 核心数 * 此值视为高负荷
+  pause_after_s: 10               # 持续超过阈值 N 秒后暂停
+  resume_after_s: 30              # 持续低于阈值 N 秒后恢复
+
+# ========== 安全与网络 ==========
+security:
+  local_only: true                # 禁止外网请求
+  disallow_network: true          # 网络限制开关
+  allowed_hosts:                  # 允许的本地地址（用于 ollama）
+    - "127.0.0.1"
+    - "localhost"
+    - "::1"
+
+# ========== 日志设置 ==========
+logging:
+  level: "INFO"                   # DEBUG | INFO | WARNING | ERROR
+  max_log_size_mb: 100            # 单个日志文件大小限制
+  max_log_files: 5                # 保留的日志文件数量
